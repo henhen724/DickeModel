@@ -1,0 +1,24 @@
+# Results folder
+results/
+
+# Julia specific
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+.DS_Store
+*.ipynb_checkpoints/
+*.jld2
+*.jld
+
+# System Files
+.DS_Store
+Thumbs.db
+
+**.png
+**.out
+**.err
+**.svg
+
+**__pycache__**
+**.npy
+.venv/
