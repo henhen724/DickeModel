@@ -32,28 +32,24 @@ function evolve_mekov(u₀, tspan, p, dt; kernel_params=(1.0, 2.0))
     u = Vector{typeof(u₀)}(undef, nt)
     u[1] = u₀
 
-    # Initialize noise
-    rng = Xoshiro128Star(1234)
-    dW = sqrt(dt) * randn(rng, 2, nt - 1)
+    # Create SDEProblem
+    prob = SDEProblem(mekov!, σ_mekov!, u₀, tspan, p)
 
-    # Initialize feedback integral
+    # Initialize integrator with fixed timestep
+    integrator = init(prob, SRIW1(); dt=dt, adaptive=false)
+
+    # Initialize arrays for measurement and feedback
     I_hist = zeros(ComplexF64, nt)
 
     for i in 1:(nt-1)
-        # Compute deterministic step using RK4
-        k1 = dt * mekov!(similar(u[i]), u[i], p, t[i])
-        k2 = dt * mekov!(similar(u[i]), u[i] + k1 / 2, p, t[i] + dt / 2)
-        k3 = dt * mekov!(similar(u[i]), u[i] + k2 / 2, p, t[i] + dt / 2)
-        k4 = dt * mekov!(similar(u[i]), u[i] + k3, p, t[i] + dt)
-
-        # Add noise term
-        noise_term = σ_mekov!(similar(u[i]), u[i], p, t[i])
-
-        # Update state
-        u[i+1] = u[i] + (k1 + 2k2 + 2k3 + k4) / 6 + noise_term * [dW[1, i]; dW[2, i]]
+        # Take a step with the integrator
+        step!(integrator)
+        
+        # Store the state
+        u[i+1] = integrator.u
 
         # Compute measurement signal
-        I_hist[i] = sqrt(2 * κ) * (u[i][1] + conj(u[i][1])) - dW[1, i] / sqrt(2 * κ)
+        I_hist[i] = sqrt(2 * κ) * (integrator.u[1] + conj(integrator.u[1])) - integrator.W[1] / sqrt(2 * κ)
     end
 
     # Compute feedback signal using convolution with kernel
