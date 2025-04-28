@@ -1,5 +1,6 @@
 using Plots, Statistics
 gr()  # Use GR backend which works well in console
+include("IsingOverlapMeltingLib.jl")
 
 # Example usage:
 N = 20  # Small system size for demonstration
@@ -53,11 +54,13 @@ println("Binder cumulant at T = $T: ", binder_cumulant)
 
 
 using LinearAlgebra
+include("IsingOverlapMeltingLib.jl")
 
 # Parameters
 N = 20  # Number of spins
 T = 0.1  # Temperature
 σ²_values = LinRange(0.0, 1.0, 6)  # Different atom number variances to test
+
 
 # Generate a single J matrix
 J = generate_symmetric_matrix(N)
@@ -105,6 +108,7 @@ J_matrices = [generate_symmetric_matrix(N) for _ in 1:20]
 
 # Create array of plots
 plots = []
+binder_cumulants = []
 for (i, σ²) in enumerate(σ²_values)
     # Initialize empty dictionary for averaged histogram
     averaged_histogram = Dict{Float64, Float64}()
@@ -130,13 +134,20 @@ for (i, σ²) in enumerate(σ²_values)
         averaged_histogram[overlap] /= length(J_matrices)
     end
     
+    # Calculate Binder cumulant
+    # B = 1 - <q^4>/(3<q^2>^2)
+    second_moment = sum(q^2 * p for (q,p) in averaged_histogram)
+    fourth_moment = sum(q^4 * p for (q,p) in averaged_histogram)
+    binder_cumulant = 1 - fourth_moment/(3 * second_moment^2)
+    push!(binder_cumulants, binder_cumulant)
+    
     # Extract data for plotting
     overlaps = collect(keys(averaged_histogram))
     counts = collect(values(averaged_histogram))
     
     # Create plot
     p = bar(overlaps, counts,
-        title="σ² = $σ²",
+        title="σ² = $σ² (\$U_L\$ = $(round(binder_cumulant, digits=3)))",
         xlabel="Overlap",
         ylabel="Count",
         legend=false,
@@ -145,6 +156,7 @@ for (i, σ²) in enumerate(σ²_values)
     push!(plots, p)
 end 
 
+using Measures
 # Find global y-axis limits
 # Update plots with consistent y-axis
 final_plot = plot(plots..., layout=(2,3), size=(1200,800), left_margin=4mm, dpi=300, ylims=(0, 0.4))
@@ -200,7 +212,6 @@ savefig(p_schedule, "annealing_schedule_N$(N).png")
 
 
 # Calculate Binder cumulants across temperature and disorder ranges
-include("IsingOverlapMeltingLib.jl")
 
 T_range = range(0.0, 3.0, length=20)
 σ²_range = range(0.0, 1.0, length=20)
@@ -238,12 +249,87 @@ end
 
 # Create heatmap of Binder cumulants
 p_binder = heatmap(T_range, σ²_range, binder_cumulants',
-    title="Binder Cumulant",
+    title="Phase Diagram (Binder Cumulant)",
     xlabel="Temperature",
     ylabel="σ²",
     color=:viridis,
+    clims=(0.0, 0.5),
     dpi=300
 )
 
 # Save the Binder cumulant plot
 savefig(p_binder, "binder_cumulant_N$(N).png")
+
+function all_to_all_ising_free_energy(J::Float64, T::Float64, m::Float64)
+    # Calculate free energy density for all-to-all Ising model
+    # F/N = -Jm²/2 + T*((1+m)/2*log((1+m)/2) + (1-m)/2*log((1-m)/2))
+    
+    # Handle edge cases to avoid NaN from log(0)
+    if m ≈ 1.0
+        m = 1.0 - eps()
+    elseif m ≈ -1.0
+        m = -1.0 + eps()
+    end
+    
+    # Calculate entropy term
+    entropy = -((1 + m)/2 * log((1 + m)/2) + (1 - m)/2 * log((1 - m)/2))
+    
+    # Calculate energy term
+    energy = -J * m^2 / 2
+    
+    # Return free energy density
+    return energy - T * entropy
+end
+
+
+function all_to_all_ising_distribution(T::Float64, N::Int, J::Float64, m_range::AbstractRange; num_samples::Int=1000)
+    # Calculate normalization constant (partition function)
+    Z = sum(exp(-N*all_to_all_ising_free_energy(J, T, m)/T) for m in m_range)
+    
+    return [exp(-N*all_to_all_ising_free_energy(J, T, m)/T) / Z for m in m_range]
+end
+
+m_range = range(-1.0, 1.0, length=300)
+T=0.1
+J=1.0
+N=100
+probabilities = all_to_all_ising_distribution(T, N, J, m_range)
+
+p = plot(m_range, probabilities, title="All-to-All Ising Distribution J=$J, T=$T, N=$N", xlabel="m", ylabel="Probability", legend=false, grid=true, dpi=300)
+savefig(p, "all_to_all_ising_distribution.png")
+
+function sample_all_to_all_ising(T::Float64, N::Int, J::Float64, m_range::AbstractRange, num_samples::Int=1000)
+    # Get probability distribution
+    probabilities = all_to_all_ising_distribution(T, N, J, m_range)
+    
+    # Sample from distribution
+    samples = rand(Distributions.Categorical(probabilities ./ sum(probabilities)), num_samples)
+    
+    # Convert indices to m values
+    m_samples = m_range[samples]
+    
+    return m_samples
+end
+
+function calculate_all_to_all_binder(T::Float64, N::Int, J::Float64, m_range::AbstractRange; num_samples::Int=1000)
+    # Get samples
+    samples = sample_all_to_all_ising(T, N, J, m_range, num_samples)
+    
+    # Calculate moments
+    m2 = mean(samples .^ 2)
+    m4 = mean(samples .^ 4)
+    
+    # Calculate Binder cumulant
+    binder = 1 - (m4 / (3 * m2^2))
+    
+    return binder
+end
+
+# Example usage:
+using Distributions
+T_test = 0.1
+N_test = 100
+J_test = 1.0
+binder = calculate_all_to_all_binder(T_test, N_test, J_test, m_range; num_samples=10000)
+println("Binder cumulant at T=$T_test: $binder")
+
