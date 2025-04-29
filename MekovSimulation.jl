@@ -1,5 +1,4 @@
-using DifferentialEquations, LaTeXStrings, JLD2, Printf, PyPlot, LsqFit, RandomNumbers.Xorshifts, DiffEqGPU, CUDA, ProgressLogging, Profile, StaticArrays
-include("HenryLib.jl")
+using DifferentialEquations
 
 
 a = 1
@@ -43,26 +42,27 @@ function evolve_mekov(u₀, tspan, p, dt; kernel_params=(1.0, 2.0))
 
     for i in 1:(nt-1)
         # Take a step with the integrator
-        step!(integrator)
+        step!(integrator, dt, false)
         
+        if check_error(integrator) != :Success
+            println("Error at step $i")
+            println(integrator.error)
+            break
+        end
+
         # Store the state
         u[i+1] = integrator.u
 
         # Compute measurement signal
-        I_hist[i] = sqrt(2 * κ) * (integrator.u[1] + conj(integrator.u[1])) - integrator.W[1] / sqrt(2 * κ)
+        I_hist[i] = sqrt(2 * κ) * (integrator.u[1] + conj(integrator.u[1])) - integrator.W[1][1] / sqrt(2 * κ)
+        I = 0.0
         for j in 1:i
-            I[i] += I_hist[j] * kernel_mekov!(t[i] - t[j], t_0=t_0, s=s) * dt
+            I += I_hist[j] * kernel_mekov!(t[i] - t[j], t_0=t_0, s=s) * dt
         end
-        integrator.p[6] = I[i]
+        integrator.p[6] = I
     end
 
-    # Compute feedback signal using convolution with kernel
-    I = zeros(ComplexF64, nt)
-    for i in 1:nt
-        
-    end
-
-    return t, u, I
+    return t, u, I_hist
 end
 
 
@@ -72,9 +72,11 @@ end
 
 # Run simulation
 tspan = (0.0, 10.0)
-dt = 0.01
-u₀ = [0.0 + 0.0im, 0.0 + 0.0im]  # Initial conditions
-p = [1.0, 1.0, 0.1, 0.5, 1.0, 0.0]  # [Δ, ω_z, κ, g, G, I]
+dt = 0.001
+u₀ = [1.0 + 0.0im, 1.0 + 0.0im]  # Initial conditions
+p = [2.0, 1.0, 0.5, 0.0, 0.0, 0.0]  # [Δ, ω_z, κ, g, G, I]
+
+
 
 t, u, I = evolve_mekov(u₀, tspan, p, dt)
 
@@ -84,7 +86,6 @@ b_real = real.(getindex.(u, 2))
 
 # Create plots
 using Plots
-pyplot()
 
 p1 = plot(t, a_real, label="Re(a)", xlabel="Time", ylabel="Value", title="Real part of a")
 p2 = plot(t, b_real, label="Re(b)", xlabel="Time", ylabel="Value", title="Real part of b")

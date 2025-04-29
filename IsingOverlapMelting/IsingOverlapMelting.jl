@@ -100,8 +100,8 @@ savefig(final_plot, "overlap_histograms_T$(T)_N$(N).png")
 
 # Parameters
 N = 20  # Number of spins
-T = 0.1  # Temperature
-σ²_values = LinRange(0.0, 1.0, 6)  # Different atom number variances to test
+T = 0.0  # Temperature
+σ²_values = LinRange(0.0, 0.0, 6)  # Different atom number variances to test
 
 # Generate a single J matrix
 J_matrices = [generate_symmetric_matrix(N) for _ in 1:20]
@@ -159,7 +159,9 @@ end
 using Measures
 # Find global y-axis limits
 # Update plots with consistent y-axis
+# Add a large title to the plot
 final_plot = plot(plots..., layout=(2,3), size=(1200,800), left_margin=4mm, dpi=300, ylims=(0, 0.4))
+final_plot = plot!(final_plot, title="T = $T", titlefont=font(24))
 savefig(final_plot, "averaged_overlap_histograms_T$(T)_N$(N).png")
 
 # Print summary information

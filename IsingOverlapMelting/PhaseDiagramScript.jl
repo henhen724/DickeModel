@@ -2,12 +2,12 @@ using ProgressMeter, LinearAlgebra, Plots, Statistics
 include("IsingOverlapMeltingLib.jl")
 
 T_range = range(0.0, 3.0, length=20)
-σ²_range = range(0.0, 1.0, length=20)
+σ²_range = [0.0]
 binder_cumulants = zeros(length(T_range), length(σ²_range))
 
 N=20
 
-J_matrices = [generate_symmetric_matrix(N) for _ in 1:20]
+J_matrices = [generate_symmetric_matrix(N) for _ in 1:5]
 
 
 @showprogress "Temperature scan: " for (i, T_scan) in enumerate(T_range)
