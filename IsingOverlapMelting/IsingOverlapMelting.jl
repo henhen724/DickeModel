@@ -21,14 +21,14 @@ p = bar(overlaps, counts,
     title="Overlap Histogram \$N=$N\$ \$T = $T\\tilde{J}\$",
     legend=false,
     grid=true,
-    size=(800,600)
+    size=(800, 600)
 )
 
 # Save the plot to a file
 savefig(p, "overlap_histogram.png")
 
 
-averaged_histogram = calculate_averaged_overlap_histogram(N, 10, 0.1)
+averaged_histogram = calculate_averaged_overlap_histogram(N, 40, 0.4)
 
 # Plot the averaged overlap histogram
 overlaps = collect(keys(averaged_histogram))
@@ -40,7 +40,7 @@ p = bar(overlaps, counts,
     title="Averaged Overlap Histogram \$N=$N\$ \$T = $T\\tilde{J}\$",
     legend=false,
     grid=true,
-    size=(800,600)
+    size=(800, 600)
 )
 
 # Save the plot to a file
@@ -70,16 +70,16 @@ plots = []
 for (i, σ²) in enumerate(σ²_values)
     # Sample states with atom number shot noise
     states = sample_with_atom_number_shot_noise(J, T, σ²)
-    
+
     # Calculate overlap histogram
     histogram = calculate_overlap_histogram(states)
     total_count = sum(values(histogram))
-    histogram = Dict(k => v/total_count for (k,v) in histogram)
-    
+    histogram = Dict(k => v / total_count for (k, v) in histogram)
+
     # Extract data for plotting
     overlaps = collect(keys(histogram))
     counts = collect(values(histogram))
-    
+
     # Create plot
     p = bar(overlaps, counts,
         title="σ² = $σ²",
@@ -89,12 +89,12 @@ for (i, σ²) in enumerate(σ²_values)
         grid=true
     )
     push!(plots, p)
-end 
+end
 
 using Measures
 
 # Combine plots into 2x3 array
-final_plot = plot(plots..., layout=(2,3), size=(1200,800), left_margin=4mm, dpi=300, ylims=(0, 0.35))
+final_plot = plot(plots..., layout=(2, 3), size=(1200, 800), left_margin=4mm, dpi=300, ylims=(0, 0.35))
 savefig(final_plot, "overlap_histograms_T$(T)_N$(N).png")
 
 
@@ -111,16 +111,16 @@ plots = []
 binder_cumulants = []
 for (i, σ²) in enumerate(σ²_values)
     # Initialize empty dictionary for averaged histogram
-    averaged_histogram = Dict{Float64, Float64}()
-    
+    averaged_histogram = Dict{Float64,Float64}()
+
     # Sample and average over all J matrices
     for J in J_matrices
         # Sample states with atom number shot noise
         states = sample_with_atom_number_shot_noise(J, T, σ²)
-        
+
         # Calculate overlap histogram for this J matrix
         histogram = calculate_overlap_histogram(states)
-        
+
         # Add normalized counts to averaged histogram
         total_count = sum(values(histogram))
         for (overlap, count) in histogram
@@ -128,23 +128,23 @@ for (i, σ²) in enumerate(σ²_values)
             averaged_histogram[overlap] = get(averaged_histogram, overlap, 0.0) + norm_count
         end
     end
-    
+
     # Normalize by number of matrices
     for overlap in keys(averaged_histogram)
         averaged_histogram[overlap] /= length(J_matrices)
     end
-    
+
     # Calculate Binder cumulant
     # B = 1 - <q^4>/(3<q^2>^2)
-    second_moment = sum(q^2 * p for (q,p) in averaged_histogram)
-    fourth_moment = sum(q^4 * p for (q,p) in averaged_histogram)
-    binder_cumulant = 1 - fourth_moment/(3 * second_moment^2)
+    second_moment = sum(q^2 * p for (q, p) in averaged_histogram)
+    fourth_moment = sum(q^4 * p for (q, p) in averaged_histogram)
+    binder_cumulant = 1 - fourth_moment / (3 * second_moment^2)
     push!(binder_cumulants, binder_cumulant)
-    
+
     # Extract data for plotting
     overlaps = collect(keys(averaged_histogram))
     counts = collect(values(averaged_histogram))
-    
+
     # Create plot
     p = bar(overlaps, counts,
         title="σ² = $σ² (\$U_L\$ = $(round(binder_cumulant, digits=3)))",
@@ -154,13 +154,13 @@ for (i, σ²) in enumerate(σ²_values)
         grid=true
     )
     push!(plots, p)
-end 
+end
 
 using Measures
 # Find global y-axis limits
 # Update plots with consistent y-axis
 # Add a large title to the plot
-final_plot = plot(plots..., layout=(2,3), size=(1200,800), left_margin=4mm, dpi=300, ylims=(0, 0.4))
+final_plot = plot(plots..., layout=(2, 3), size=(1200, 800), left_margin=4mm, dpi=300, ylims=(0, 0.4))
 final_plot = plot!(final_plot, title="T = $T", titlefont=font(24))
 savefig(final_plot, "averaged_overlap_histograms_T$(T)_N$(N).png")
 
@@ -182,7 +182,7 @@ cooling_steps = 100
 rounds = 3
 step = 1:3*cooling_steps
 
-T_schedule = max_temp * (T/max_temp).^((step .% cooling_steps)./cooling_steps)
+T_schedule = max_temp * (T / max_temp) .^ ((step .% cooling_steps) ./ cooling_steps)
 
 # Create array to mark where new atom numbers are sampled
 # Assuming we sample new atom numbers every 10 steps (adjust as needed)
@@ -198,16 +198,16 @@ p_schedule = plot(step, T_schedule,
     grid=true, dpi=300
 )
 
-vline!(sampling_points .-3 .+ cooling_steps, 
-           label="Sample State", 
-           color=:red, 
-           linestyle=:dash,
-           alpha=2.0)
-vline!(sampling_points.+ 1, 
-           label="Draw New Atom Numbers", 
-           color=:green, 
-           linestyle=:dash,
-           alpha=2.0)
+vline!(sampling_points .- 3 .+ cooling_steps,
+    label="Sample State",
+    color=:red,
+    linestyle=:dash,
+    alpha=2.0)
+vline!(sampling_points .+ 1,
+    label="Draw New Atom Numbers",
+    color=:green,
+    linestyle=:dash,
+    alpha=2.0)
 
 # Save the annealing schedule plot
 savefig(p_schedule, "annealing_schedule_N$(N).png")
@@ -219,7 +219,7 @@ T_range = range(0.0, 3.0, length=20)
 σ²_range = range(0.0, 1.0, length=20)
 binder_cumulants = zeros(length(T_range), length(σ²_range))
 
-N=20
+N = 20
 
 J_matrices = [generate_symmetric_matrix(N) for _ in 1:20]
 
@@ -236,7 +236,7 @@ using ProgressMeter, LinearAlgebra, Plots
 
         # Combine histograms
         total_count = sum(sum(values(h)) for h in histograms)
-        averaged_histogram = Dict{Float64, Float64}()
+        averaged_histogram = Dict{Float64,Float64}()
         for histogram in histograms
             for (overlap, count) in histogram
                 norm_count = count / total_count
@@ -245,7 +245,7 @@ using ProgressMeter, LinearAlgebra, Plots
         end
 
         # Calculate Binder cumulant: 1 - m4/(3*m2^2)
-        binder_cumulants[i,j] = calculate_binder_cumulant(averaged_histogram)
+        binder_cumulants[i, j] = calculate_binder_cumulant(averaged_histogram)
     end
 end
 
@@ -265,20 +265,20 @@ savefig(p_binder, "binder_cumulant_N$(N).png")
 function all_to_all_ising_free_energy(J::Float64, T::Float64, m::Float64)
     # Calculate free energy density for all-to-all Ising model
     # F/N = -Jm²/2 + T*((1+m)/2*log((1+m)/2) + (1-m)/2*log((1-m)/2))
-    
+
     # Handle edge cases to avoid NaN from log(0)
     if m ≈ 1.0
         m = 1.0 - eps()
     elseif m ≈ -1.0
         m = -1.0 + eps()
     end
-    
+
     # Calculate entropy term
-    entropy = -((1 + m)/2 * log((1 + m)/2) + (1 - m)/2 * log((1 - m)/2))
-    
+    entropy = -((1 + m) / 2 * log((1 + m) / 2) + (1 - m) / 2 * log((1 - m) / 2))
+
     # Calculate energy term
     energy = -J * m^2 / 2
-    
+
     # Return free energy density
     return energy - T * entropy
 end
@@ -286,15 +286,15 @@ end
 
 function all_to_all_ising_distribution(T::Float64, N::Int, J::Float64, m_range::AbstractRange; num_samples::Int=1000)
     # Calculate normalization constant (partition function)
-    Z = sum(exp(-N*all_to_all_ising_free_energy(J, T, m)/T) for m in m_range)
-    
-    return [exp(-N*all_to_all_ising_free_energy(J, T, m)/T) / Z for m in m_range]
+    Z = sum(exp(-N * all_to_all_ising_free_energy(J, T, m) / T) for m in m_range)
+
+    return [exp(-N * all_to_all_ising_free_energy(J, T, m) / T) / Z for m in m_range]
 end
 
 m_range = range(-1.0, 1.0, length=300)
-T=0.1
-J=1.0
-N=100
+T = 0.1
+J = 1.0
+N = 100
 probabilities = all_to_all_ising_distribution(T, N, J, m_range)
 
 p = plot(m_range, probabilities, title="All-to-All Ising Distribution J=$J, T=$T, N=$N", xlabel="m", ylabel="Probability", legend=false, grid=true, dpi=300)
@@ -303,27 +303,27 @@ savefig(p, "all_to_all_ising_distribution.png")
 function sample_all_to_all_ising(T::Float64, N::Int, J::Float64, m_range::AbstractRange, num_samples::Int=1000)
     # Get probability distribution
     probabilities = all_to_all_ising_distribution(T, N, J, m_range)
-    
+
     # Sample from distribution
     samples = rand(Distributions.Categorical(probabilities ./ sum(probabilities)), num_samples)
-    
+
     # Convert indices to m values
     m_samples = m_range[samples]
-    
+
     return m_samples
 end
 
 function calculate_all_to_all_binder(T::Float64, N::Int, J::Float64, m_range::AbstractRange; num_samples::Int=1000)
     # Get samples
     samples = sample_all_to_all_ising(T, N, J, m_range, num_samples)
-    
+
     # Calculate moments
     m2 = mean(samples .^ 2)
     m4 = mean(samples .^ 4)
-    
+
     # Calculate Binder cumulant
     binder = 1 - (m4 / (3 * m2^2))
-    
+
     return binder
 end
 
